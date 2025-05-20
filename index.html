@@ -1,0 +1,330 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Oraciones Subordinadas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            background-color: #007BFF;
+            color: white;
+            padding: 10px;
+            border-radius: 8px 8px 0 0;
+        }
+        main {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #timer {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #FF4136;
+        }
+        #questionContent label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        #warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #warning.active {
+            display: flex;
+        }
+        #warning-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Test de Oraciones Subordinadas en Español</h1>
+        <p>Fecha y hora: 10:42 AM CEST on Tuesday, May 20, 2025</p>
+    </header>
+    <main>
+        <section id="introduction">
+            <h2>Introducción</h2>
+            <p>En español, las oraciones subordinadas son aquellas que dependen de una oración principal y proporcionan información adicional. Hay tres tipos principales:</p>
+            <ol>
+                <li><strong>Oraciones Subordinadas Sustantivas</strong>: Funcionan como sustantivos y pueden ser el sujeto, objeto o complemento de la oración principal. Se introducen por conectores como "que", "si", "quién", "cuál", "cuánto", "dónde", "cómo", "cuándo" o por verbos en infinitivo (terminados en -ar, -er, -ir). Ejemplo: "Creo que tienes una novia seria" puede sustituirse por "Creo eso".</li>
+                <li><strong>Oraciones Subordinadas de Relativo/Adjetivas</strong>: Funcionan como adjetivos, modificando un sustantivo en la oración principal. Se introducen por "que", "cual", "cuanto", "quien", "cuyo", "donde", "como", "cuando". Ejemplo: "El libro que leí es interesante".</li>
+                <li><strong>Oraciones Subordinadas Adverbiales</strong>: Funcionan como adverbios, modificando el verbo de la oración principal para indicar tiempo, causa, propósito, condición, etc. Se introducen por "porque", "ya que", "para que", "luego", "aunque", "tan... que", "tanto... que", "si". Ejemplo: "Vine porque me lo pediste".</li>
+            </ol>
+            <button id="startBtn">Comenzar el Test</button>
+        </section>
+        <section id="questions" style="display: none;">
+            <h2>Pregunta <span id="questionNum"></span></h2>
+            <div id="questionContent"></div>
+            <div id="timer">Tiempo restante: <span id="timeLeft"></span> segundos</div>
+            <button id="nextBtn" style="display: none;">Siguiente</button>
+        </section>
+        <section id="results" style="display: none;">
+            <h2>Resultados</h2>
+            <p>Has respondido correctamente <span id="correctAnswers"></span> de 60 preguntas.</p>
+        </section>
+        <section id="warning">
+            <div id="warning-content">
+                <h2>Advertencia</h2>
+                <p>Has cambiado de pestaña demasiadas veces. El test se ha detenido. Por favor, revisa las explicaciones y comienza de nuevo.</p>
+                <button id="okayBtn">Okay</button>
+            </div>
+        </section>
+    </main>
+    <script>
+        const questions = [
+            { type: 'multiple', question: 'Complete: No sé _____ Tomás vendrá.', options: ['que', 'si', 'porque', 'cuando'], correct: 1 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas sustantivas siempre se introducen con "que".', options: ['Verdadero', 'Falso'], correct: 1 },
+            { type: 'multiple', question: '¿Qué tipo de oración subordinada es: "El hombre que vino ayer es mi tío"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 1 },
+            { type: 'multiple', question: 'Complete: Vine _____ me lo pediste.', options: ['que', 'si', 'porque', 'ya que'], correct: [2, 3] },
+            { type: 'multiple', question: 'Únelas con una subordinada: "Llegué tarde." / "Estaba lloviendo."', options: ['Llegué tarde estaba lloviendo.', 'Llegué tarde porque estaba lloviendo.', 'Estaba lloviendo llegué tarde.'], correct: 1 },
+            { type: 'multiple', question: 'En 1492, Colón llegó a América, _____ quería encontrar una nueva ruta a las Indias.', options: ['porque', 'ya que', 'para que', 'si'], correct: [0, 1] },
+            { type: 'multiple', question: 'Identifique el tipo de cláusula en: "Vendré si me invitas".', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas adverbiales indican circunstancias como tiempo, lugar, manera, etc.', options: ['Verdadero', 'Falso'], correct: 0 },
+            { type: 'multiple', question: 'Complete: Dime _____ lo hiciste.', options: ['que', 'si', 'cómo', 'cuándo'], correct: 2 },
+            { type: 'multiple', question: 'En "El libro cuyo autor es famoso", ¿qué tipo de cláusula subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 1 },
+            { type: 'multiple', question: 'Complete: Lo haré _____ tú quieras.', options: ['que', 'si', 'como', 'cuando'], correct: 2 },
+            { type: 'multiple', question: 'En la Revolución Francesa de 1789, el pueblo se rebeló _____ (para que/aunque) la monarquía cayera, _____ (porque/ya que) estaba cansado de la opresión.', options: ['para que, porque', 'aunque, ya que', 'para que, ya que', 'aunque, porque'], correct: [0, 2] },
+            { type: 'truefalse', question: 'El conector "si" se usa solo en oraciones subordinadas adverbiales.', options: ['Verdadero', 'Falso'], correct: 1 },
+            { type: 'multiple', question: '¿Qué tipo de subordinada es "que estudies" en "Es necesario que estudies"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 0 },
+            { type: 'multiple', question: 'Complete: El lugar _____ vivimos es tranquilo.', options: ['que', 'donde', 'cuyo', 'como'], correct: 1 },
+            { type: 'multiple', question: 'Únelas con una subordinada: "Ana quería saber algo." / "Llegarías a tiempo."', options: ['Ana quería saber llegarías a tiempo.', 'Ana quería saber si llegarías a tiempo.', 'Llegarías a tiempo Ana quería saber.'], correct: 1 },
+            { type: 'multiple', question: '¿Qué conector introduce una subordinada adverbial de causa?', options: ['porque', 'si', 'cuando', 'que'], correct: 0 },
+            { type: 'multiple', question: 'En "Aunque llovió, salimos", ¿qué tipo de subordinada es "Aunque llovió"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas adjetivas pueden omitirse sin afectar la gramaticalidad de la oración.', options: ['Verdadero', 'Falso'], correct: 0 },
+            { type: 'multiple', question: 'Complete: No sé _____ es verdad.', options: ['que', 'si', 'porque', 'cuando'], correct: 1 },
+            { type: 'multiple', question: '¿Qué tipo de subordinada es "para que apruebes" en "Estudia para que apruebes"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'multiple', question: 'En 1808, España fue invadida por Napoleón, _____ (porque/ya que) quería controlar Europa.', options: ['porque', 'ya que', 'para que', 'si'], correct: [0, 1] },
+            { type: 'multiple', question: 'Complete: El libro _____ autor es famoso.', options: ['que', 'cuyo', 'donde', 'como'], correct: 1 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas sustantivas siempre llevan el verbo en indicativo.', options: ['Verdadero', 'Falso'], correct: 1 },
+            { type: 'multiple', question: 'En "Tan rápido que no lo vi", ¿qué tipo de subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'multiple', question: 'Complete: Dime _____ lo encontraste.', options: ['que', 'si', 'dónde', 'cuándo'], correct: 2 },
+            { type: 'multiple', question: 'Únelas con una subordinada: "No sabía nada." / "Iría al cine."', options: ['No sabía nada iría al cine.', 'No sabía si iría al cine.', 'Iría al cine no sabía nada.'], correct: 1 },
+            { type: 'multiple', question: '¿Qué conector se usa para subordinadas adverbiales de condición?', options: ['porque', 'si', 'cuando', 'que'], correct: 1 },
+            { type: 'multiple', question: 'En "La casa donde vivo", ¿qué tipo de subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 1 },
+            { type: 'multiple', question: 'Complete: Lo hice _____ me lo pediste.', options: ['que', 'si', 'porque', 'ya que'], correct: [2, 3] },
+            { type: 'multiple', question: '¿Qué tipo de subordinada es "que lo sepas" en "Quiero que lo sepas"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 0 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas adjetivas restringen o especifican el sustantivo al que se refieren.', options: ['Verdadero', 'Falso'], correct: 0 },
+            { type: 'multiple', question: 'En 1969, el hombre llegó a la Luna, _____ (para que/aunque) todos lo vieran, _____ (porque/ya que) la tecnología lo permitió.', options: ['para que, porque', 'aunque, ya que', 'para que, ya que', 'aunque, porque'], correct: [0, 2] },
+            { type: 'multiple', question: 'Complete: El hombre _____ coche robé.', options: ['que', 'cuyo', 'donde', 'como'], correct: 1 },
+            { type: 'multiple', question: 'En "Lo haré cuando pueda", ¿qué tipo de subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'multiple', question: 'Complete: Dime _____ llegaste.', options: ['que', 'si', 'cómo', 'cuándo'], correct: 3 },
+            { type: 'multiple', question: 'Únelas con una subordinada: "María se fue." / "Estaba cansada."', options: ['María se fue estaba cansada.', 'María se fue porque estaba cansada.', 'Estaba cansada María se fue.'], correct: 1 },
+            { type: 'multiple', question: '¿Qué tipo de subordinada es "que lo hagas" en "Es importante que lo hagas"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 0 },
+            { type: 'multiple', question: 'Complete: No sé _____ hacer.', options: ['que', 'si', 'cómo', 'cuándo'], correct: 2 },
+            { type: 'multiple', question: 'En 1914, comenzó la Primera Guerra Mundial, _____ (porque/ya que) las tensiones en Europa eran altas.', options: ['porque', 'ya que', 'para que', 'si'], correct: [0, 1] },
+            { type: 'truefalse', question: 'Las oraciones subordinadas adverbiales siempre llevan el verbo en indicativo.', options: ['Verdadero', 'Falso'], correct: 1 },
+            { type: 'multiple', question: 'En "La ciudad donde nací", ¿qué tipo de subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 1 },
+            { type: 'multiple', question: 'Complete: Lo hice _____ tú querías.', options: ['que', 'si', 'como', 'cuando'], correct: 2 },
+            { type: 'multiple', question: '¿Qué tipo de subordinada es "si lo deseas" en "Puedes venir si lo deseas"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'multiple', question: 'Únelas con una subordinada: "Juan quería ganar." / "Entrenó mucho."', options: ['Juan quería ganar entrenó mucho.', 'Juan quería ganar para que entrenó mucho.', 'Juan quería ganar porque entrenó mucho.'], correct: 1 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas sustantivas pueden ser introducidas por "que" o "si".', options: ['Verdadero', 'Falso'], correct: 0 },
+            { type: 'multiple', question: 'En "El libro que leí", ¿qué tipo de subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 1 },
+            { type: 'multiple', question: 'Complete: No sé _____ es.', options: ['que', 'si', 'quién', 'cuándo'], correct: 2 },
+            { type: 'multiple', question: 'En 1945, terminó la Segunda Guerra Mundial, _____ (porque/ya que) los Aliados ganaron.', options: ['porque', 'ya que', 'para que', 'si'], correct: [0, 1] },
+            { type: 'multiple', question: '¿Qué conector se usa para subordinadas adverbiales de finalidad?', options: ['porque', 'si', 'para que', 'cuando'], correct: 2 },
+            { type: 'multiple', question: 'En "Tan cansado que no podía caminar", ¿qué tipo de subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'multiple', question: 'Complete: Dime _____ lo compraste.', options: ['que', 'si', 'dónde', 'cuándo'], correct: 2 },
+            { type: 'multiple', question: 'Únelas con una subordinada: "No vine." / "Estaba enfermo."', options: ['No vine estaba enfermo.', 'No vine porque estaba enfermo.', 'Estaba enfermo no vine.'], correct: 1 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas adjetivas pueden ser explicativas o especificativas.', options: ['Verdadero', 'Falso'], correct: 0 },
+            { type: 'multiple', question: 'En "El momento en que llegaste", ¿qué tipo de subordinada es?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 1 },
+            { type: 'multiple', question: 'Complete: No sé _____ hacerlo.', options: ['que', 'si', 'cómo', 'cuándo'], correct: 2 },
+            { type: 'multiple', question: 'En 1929, ocurrió el crack bursátil, _____ (porque/ya que) la economía estaba sobrevalorada, _____ (aunque/para que) muchos lo ignoraran.', options: ['porque, aunque', 'ya que, para que', 'porque, para que', 'ya que, aunque'], correct: [0, 3] },
+            { type: 'multiple', question: '¿Qué tipo de subordinada es "para que lo sepas" en "Te lo digo para que lo sepas"?', options: ['Sustantiva', 'Adjetiva', 'Adverbial'], correct: 2 },
+            { type: 'multiple', question: 'Complete: Lo haré _____ me digas.', options: ['que', 'si', 'como', 'cuando'], correct: 2 },
+            { type: 'multiple', question: 'Únelas con una subordinada: "Ella estudió mucho." / "Quería aprobar."', options: ['Ella estudió mucho quería aprobar.', 'Ella estudió mucho para que quería aprobar.', 'Ella estudió mucho porque quería aprobar.'], correct: 2 },
+            { type: 'truefalse', question: 'Las oraciones subordinadas sustantivas pueden ser introducidas por pronombres interrogativos.', options: ['Verdadero', 'Falso'], correct: 0 }
+        ];
+
+        const startBtn = document.getElementById('startBtn');
+        const introduction = document.getElementById('introduction');
+        const questionsSection = document.getElementById('questions');
+        const questionNumSpan = document.getElementById('questionNum');
+        const questionContentDiv = document.getElementById('questionContent');
+        const timeLeftSpan = document.getElementById('timeLeft');
+        const nextBtn = document.getElementById('nextBtn');
+        const resultsSection = document.getElementById('results');
+        const correctAnswersSpan = document.getElementById('correctAnswers');
+        const warningSection = document.getElementById('warning');
+        const okayBtn = document.getElementById('okayBtn');
+
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+        let timeLeft;
+        let timerInterval;
+        let isPaused = false;
+        let tabSwitchCount = 0;
+
+        startBtn.addEventListener('click', startTest);
+        okayBtn.addEventListener('click', resetTest);
+
+        function startTest() {
+            introduction.style.display = 'none';
+            questionsSection.style.display = 'block';
+            tabSwitchCount = 0;
+            warningSection.classList.remove('active');
+            loadQuestion(currentQuestionIndex);
+        }
+
+        function loadQuestion(index) {
+            if (index >= questions.length) {
+                showResults();
+                return;
+            }
+            questionNumSpan.textContent = index + 1;
+            const q = questions[index];
+            questionContentDiv.innerHTML = `<p>${q.question}</p>`;
+            q.options.forEach((option, i) => {
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="radio" name="answer" value="${i}"> ${option}`;
+                questionContentDiv.appendChild(label);
+                questionContentDiv.appendChild(document.createElement('br'));
+            });
+            nextBtn.style.display = 'inline';
+            startTimer(60);
+        }
+
+        function startTimer(seconds) {
+            timeLeft = seconds;
+            timeLeftSpan.textContent = timeLeft;
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    timeLeft--;
+                    timeLeftSpan.textContent = timeLeft;
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        nextQuestion();
+                    }
+                }
+            }, 1000);
+        }
+
+        nextBtn.addEventListener('click', nextQuestion);
+
+        function nextQuestion() {
+            clearInterval(timerInterval);
+            const selected = document.querySelector('input[name="answer"]:checked');
+            userAnswers[currentQuestionIndex] = selected ? parseInt(selected.value) : null;
+            currentQuestionIndex++;
+            questionContentDiv.innerHTML = '';
+            loadQuestion(currentQuestionIndex);
+        }
+
+        function showResults() {
+            questionsSection.style.display = 'none';
+            resultsSection.style.display = 'block';
+            let correctCount = 0;
+            userAnswers.forEach((answer, index) => {
+                const correct = questions[index].correct;
+                if (Array.isArray(correct)) {
+                    if (answer !== null && correct.includes(answer)) correctCount++;
+                } else {
+                    if (answer === correct) correctCount++;
+                }
+            });
+            correctAnswersSpan.textContent = correctCount;
+        }
+
+        function resetTest() {
+            clearInterval(timerInterval);
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            tabSwitchCount = 0;
+            isPaused = false;
+            questionContentDiv.innerHTML = '';
+            questionsSection.style.display = 'none';
+            resultsSection.style.display = 'none';
+            warningSection.classList.remove('active');
+            introduction.style.display = 'block';
+        }
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                isPaused = true;
+                tabSwitchCount++;
+                if (tabSwitchCount > 3) {
+                    clearInterval(timerInterval);
+                    questionsSection.style.display = 'none';
+                    warningSection.classList.add('active');
+                } else {
+                    alert('Por favor, manténgase en esta pestaña. Llevas ' + tabSwitchCount + ' cambios de pestaña. Máximo: 3.');
+                }
+            } else {
+                isPaused = false;
+            }
+        });
+    </script>
+</body>
+</html>
